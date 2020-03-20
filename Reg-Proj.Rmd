@@ -1,0 +1,320 @@
+---
+title: "Regression Project of QMB6304.001F19"
+author: "Rajitha Pandiniboyini"
+date: "10/20/2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+#Regression Project of QMB6304.001F19
+#Rajitha Pandiniboyini
+#import Data
+getwd()
+library(rio)
+trip=import("6304 Regression Project Data.csv")
+colnames(trip)=tolower(make.names(colnames(trip)))
+attach(trip)
+
+```
+
+```{r}
+#select samples
+set.seed(12271261)
+sample=trip[sample(1:nrow(trip),100,replace=FALSE),]
+
+```
+```{r}
+#remove outliers
+#remove zeros in seconds
+a=subset(sample,(sample$trip_seconds)!='0')
+#remove zeros in miles
+b=subset(a,(a$trip_miles)!='0')
+#remove ouliers for extra
+boxplot(b$extras)
+#read quartile ranges
+summary(b$extras)
+#assigning quartile ranges as per above summary values
+uq=0
+lq=1
+iqr=IQR(b$extras)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((b$extras)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((b$extras)<threshold2)#this gives rows numbers with less than treshold2
+outlierremoved<- b[-(rownumber1), ]
+##########
+
+#remove ouliers for tolls
+boxplot(outlierremoved$tolls)
+#no ouliers for tolls
+#############
+#remove ouliers for tips
+boxplot(outlierremoved$tips)
+#read quartile ranges
+summary(outlierremoved$tips)
+#assigning quartile ranges as per above summary values
+uq=2.45
+lq=0
+iqr=IQR(outlierremoved$tips)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((outlierremoved$tips)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((outlierremoved$tips)<threshold2)#this gives rows numbers with less than treshold2
+outlierremoved<- outlierremoved[-(rownumber1), ]
+#################
+#remove ouliers for fare
+boxplot(outlierremoved$fare)
+#read quartile ranges
+summary(outlierremoved$fare)
+#assigning quartile ranges as per above summary values
+uq=12.25
+lq=6.25
+iqr=IQR(outlierremoved$fare)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((outlierremoved$fare)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((outlierremoved$fare)<threshold2)#this gives rows numbers with less than treshold2
+outlierremoved<- outlierremoved[-(rownumber1), ]
+#################
+#remove ouliers for triptoal
+boxplot(outlierremoved$trip_total)
+#read quartile ranges
+summary(outlierremoved$trip_total)
+#assigning quartile ranges as per above summary values
+uq=13.19
+lq=7.00
+iqr=IQR(outlierremoved$trip_total)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((outlierremoved$trip_total)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((outlierremoved$trip_total)<threshold2)#this gives rows numbers with less than treshold2
+#no rows which are above or below treshold
+#nothing reomoved for cashtype as everything is normal
+#has 62 rows after removing outliers
+#
+Finaldata<-outlierremoved
+attach(Finaldata)
+#
+
+```
+```{r}
+#q1
+summary(Finaldata$trip_seconds)
+summary(Finaldata$trip_miles)
+summary(Finaldata$fare)
+summary(Finaldata$tips)
+summary(Finaldata$extras)
+summary(Finaldata$tolls)
+summary(Finaldata$trip_total)
+#
+par(mfrow=c(2,4))
+plot(density(Finaldata$trip_seconds),main="seconds plot")
+plot(density(Finaldata$trip_miles),main="miles plot")
+plot(density(Finaldata$fare),main="fare plot")
+plot(density(Finaldata$tips),main="tips plot")
+plot(density(Finaldata$extras),main="extras plot")
+plot(density(Finaldata$tolls),main="tolls plot")
+plot(density(Finaldata$trip_total),main="totaltrip plot")
+#
+library(moments)
+skewness(Finaldata$trip_seconds)
+kurtosis(Finaldata$trip_seconds)
+skewness(Finaldata$trip_miles)
+kurtosis(Finaldata$trip_miles)
+skewness(Finaldata$fare)
+kurtosis(Finaldata$fare)
+skewness(Finaldata$tips)
+kurtosis(Finaldata$tips)
+skewness(Finaldata$extras)
+kurtosis(Finaldata$extras)
+skewness(Finaldata$tolls)
+kurtosis(Finaldata$tolls)
+skewness(Finaldata$trip_total)
+kurtosis(Finaldata$trip_total)
+
+
+
+```
+```{r}
+#q2
+library(plyr)
+count(Finaldata, "payment_type")
+
+```
+```{r}
+#q3
+cordata <- Finaldata[, c(2,3,4,5,6,7,8)]
+pairs(cordata)
+res <- cor(cordata)
+round(res, 2)
+
+```
+```{r}
+#q4
+model=lm(fare~trip_seconds+trip_miles+payment_type,data=Finaldata)
+summary(model)
+confint(model)
+
+```
+```{r}
+#q5
+experimentmodel=lm(fare~trip_seconds+trip_miles+payment_type+trip_seconds:trip_miles+I(trip_miles^2),data=Finaldata)
+summary(experimentmodel)
+experimentmodel1=lm(fare~trip_seconds+trip_miles+payment_type+trip_seconds:trip_miles+I(trip_seconds^2),data=Finaldata)
+summary(experimentmodel1)
+experimentmodel2=lm(fare~trip_seconds+trip_miles+payment_type+trip_seconds:trip_miles+I(trip_miles^2)+I(trip_seconds^2),data=Finaldata)
+summary(experimentmodel2)
+
+
+```
+```{r}
+#q6
+#determine best model
+anova(model,experimentmodel)
+#best selected model-experimentmodel
+#
+#Linearity
+bestmodel<-experimentmodel
+par(mfrow=c(1,1))
+plot(Finaldata$fare,bestmodel$fitted.values,
+     pch=19,main="Fare Actuals v. Fitted")
+abline(0,1,col="red",lwd=3)
+#independence
+#create new variable sequnetially
+Finaldata$index=seq(1:nrow(Finaldata))
+plot(Finaldata$index,Finaldata$fare,pch=19,
+     main="Taxi Fare for trips in Chicago")
+plot(Finaldata$index,Finaldata$fare,pch=19,type="l",
+     main="Taxi Fare for trips in Chicago")
+plot(Finaldata$index,Finaldata$fare,pch=19,type="o",
+     main="Taxi Fare for trips in Chicago")
+selectedmodel=lm((fare~index),data=Finaldata)
+summary(selectedmodel)
+abline(selectedmodel,col="red",lwd=3)
+library(car)
+durbinWatsonTest(selectedmodel)
+
+#Normality
+qqnorm(bestmodel$residuals,pch=19,
+       main="Taxi Trips Normality Plot")
+qqline(bestmodel$residuals,lwd=3,col="red")
+#Equality of Variances
+plot(Finaldata$fare,rstandard(bestmodel),
+     pch=19,main="Taxi Trips Residual Plot")
+abline(0,0,col="red",lwd=3)
+
+```
+```{r}
+#q7
+#finding whether leverage point exists or not using plot
+leverage=hat(model.matrix(bestmodel))
+plot(leverage,pch=19,main="Leverage Plot with sampled Taxi Trips Data")
+abline(3*mean(leverage),0,col="red",lwd=3)
+#finding rows which has leverage points
+leveragevalues=Finaldata[leverage>(3*mean(leverage)),]
+#read leverage rows
+NewData <- which(rownames(Finaldata) %in% c("830453","1587713","1233409","969220"))
+#remove leverage rows
+cleanData <- Finaldata[-NewData, ]
+#Build new model with cleaned data
+Newmodel=lm(fare~trip_seconds+trip_miles+payment_type+trip_seconds:trip_miles+I(trip_miles^2),data=cleanData)
+summary(Newmodel)
+
+```
+```{r}
+#
+#selecting another rand data set
+set.seed(12271266)
+testsample=trip[sample(1:nrow(trip),100,replace=FALSE),]
+#cleaning test sample
+#remove zeros in seconds
+a=subset(testsample,(testsample$trip_seconds)!='0')
+#remove zeros in miles
+b=subset(a,(a$trip_miles)!='0')
+#remove ouliers for extra
+boxplot(b$extras)
+#read quartile ranges
+summary(b$extras)
+#assigning quartile ranges as per above summary values
+uq=0
+lq=1
+iqr=IQR(b$extras)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((b$extras)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((b$extras)<threshold2)#this gives rows numbers with less than treshold2
+outlierremoved<- b[-(rownumber1), ]
+##########
+
+#remove ouliers for tolls
+boxplot(outlierremoved$tolls)
+#no ouliers for tolls
+#############
+#remove ouliers for tips
+boxplot(outlierremoved$tips)
+#read quartile ranges
+summary(outlierremoved$tips)
+#assigning quartile ranges as per above summary values
+uq=1.139
+lq=0
+iqr=IQR(outlierremoved$tips)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((outlierremoved$tips)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((outlierremoved$tips)<threshold2)#this gives rows numbers with less than treshold2
+outlierremoved<- outlierremoved[-(rownumber1), ]
+#################
+#remove ouliers for fare
+boxplot(outlierremoved$fare)
+#read quartile ranges
+summary(outlierremoved$fare)
+#assigning quartile ranges as per above summary values
+uq=10.875
+lq=6.25
+iqr=IQR(outlierremoved$fare)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((outlierremoved$fare)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((outlierremoved$fare)<threshold2)#this gives rows numbers with less than treshold2
+outlierremoved<- outlierremoved[-(rownumber1), ]
+#################
+#remove ouliers for triptoal
+boxplot(outlierremoved$trip_total)
+#read quartile ranges
+summary(outlierremoved$trip_total)
+#assigning quartile ranges as per above summary values
+uq=12.25
+lq=7.25
+iqr=IQR(outlierremoved$trip_total)
+threshold1 = (iqr * 3) + uq
+threshold2 = lq - (iqr * 3)
+rownumber1<- which((outlierremoved$trip_total)>threshold1)#this gives rows numbers with more than treshold1
+rownumber2<- which((outlierremoved$trip_total)<threshold2)#this gives rows numbers with less than treshold2
+#no rows which are above or below treshold
+#nothing reomoved for cashtype as everything is normal
+#has 63 rows after removing outliers
+finaltestdata<-outlierremoved
+#calculating model predicted values based on payment type
+count=0
+for(j in 1:nrow(finaltestdata)) {
+        
+        if(finaltestdata$payment_type[j]== "Credit Card") {
+                0.0118503*(finaltestdata$trip_seconds)
+                finaltestdata$predictedvalues[j]=2.4635521+ (0.0118503*finaltestdata$trip_seconds[j])+(0.3380578*finaltestdata$trip_miles[j])+0.5137641+(0.4407748*(finaltestdata$trip_miles[j]^2))-(0.0025390*finaltestdata$trip_seconds[j]*finaltestdata$trip_miles[j])
+                
+                count=count+1
+                
+        }
+        else {
+                finaltestdata$predictedvalues[j]=2.4635521+ (0.0118503*finaltestdata$trip_seconds[j])+(0.3380578*finaltestdata$trip_miles[j])+(0.4407748*(finaltestdata$trip_miles[j]^2))-(0.0025390*finaltestdata$trip_seconds[j]*finaltestdata$trip_miles[j])
+                count=count+1
+                
+        }
+        
+}
+
+confint(bestmodel)
+
+```
